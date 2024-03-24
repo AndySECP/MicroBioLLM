@@ -1,11 +1,14 @@
 from dataclasses import dataclass
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from transformers import AutoModelForSequenceClassification, TrainingArguments, Trainer, AutoTokenizer
+from transformers import AutoModelForSequenceClassification, TrainingArguments, Trainer, AutoTokenizer, DataCollatorWithPaddingm, BitsAndBytesConfig
 from torch.utils.data import Dataset
 from datasets import Dataset, DatasetDict
 import torch
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class KmerCountDataset(Dataset):
@@ -79,14 +82,24 @@ class MicroBioFewShots:
 
 def prepare_data_and_tokenize_string_input(data: dict, tokenizer_model="mistralai/Mistral-7B-Instruct-v0.2"):
     # Load the tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_model)
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16
+    )
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        tokenizer_model, quantization_config=bnb_config, device_map="auto")
 
     # Check if the tokenizer has a pad token, if not, set it to the eos_token
+    # Ensure the tokenizer has a pad token set
     if tokenizer.pad_token is None:
         if tokenizer.eos_token:
             tokenizer.pad_token = tokenizer.eos_token
         else:
-            # If there is no eos token, add a pad token. This is necessary for models that require a pad token.
+            # If there is no eos token, explicitly add a pad token.
+            # This is necessary for models that require a pad token for proper batching.
             tokenizer.add_special_tokens({'pad_token': '[PAD]'})
 
     # Your existing code for tokenization
@@ -127,23 +140,23 @@ class MicroBioFineTuning:
         #    "mistralai/Mistral-7B-Instruct-v0.2")
         self.model = AutoModelForSequenceClassification.from_pretrained(
             "mistralai/Mistral-7B-Instruct-v0.2", num_labels=2)
+
         training_args = TrainingArguments(
             output_dir="./results",
             evaluation_strategy="epoch",
             learning_rate=2e-5,
-            per_device_train_batch_size=16,
-            per_device_eval_batch_size=16,
+            per_device_train_batch_size=4,
+            per_device_eval_batch_size=4,
             num_train_epochs=3,
             weight_decay=0.01,
             logging_steps=10,
-            fp16=True,
+            # fp16=True,
         )
         self.trainer = Trainer(
             model=self.model,
             args=training_args,
             train_dataset=self.tokenized_datasets["train"],
             eval_dataset=self.tokenized_datasets["test"],
-            # tokenizer=tokenizer,
         )
         self.trainer.train()
         self.model.save_pretrained('./fine_tuned_model')
@@ -190,25 +203,24 @@ def main_0():
     padded_sequence = tokenizer.pad_sequence(
         tokenized_sequence_with_specials, 20)
 
-    print(padded_sequence)
+    logger.info(padded_sequence)
 
 
 def dtf_to_sentence(dtf):
     """
-    An optimized version of the dtf_to_sentence function for converting a given dtf
-    to sentences describing the frequency of each 3-mer with efficiency improvements.
+    Converting a given dtf to sentences describing the frequency of each k-mers.
     """
     # Initialize an empty dictionary to store the result
     sentences = {}
 
     # Pre-compute the list of 3-mers to avoid repeatedly accessing the dictionary's keys
-    kmers = [k for k in dtf.columns]
+    kmers = [k for k in dtf.columns if k != "label"]
 
     # Iterate over indices and taxa simultaneously for direct access
-    for index, taxon in enumerate(dtf.index):
+    for index, taxon in enumerate(dtf["label"]):
         # Use a list comprehension for concise and potentially faster execution
         sentence = ' '.join(
-            f"{kmer} {dtf.loc[taxon, kmer]}" for kmer in kmers if dtf.loc[taxon, kmer] > 0)
+            f"{kmer} {dtf.loc[index, kmer]}" for kmer in kmers if dtf.loc[index, kmer] > 0)
 
         # Assign the sentence to the taxon in the result dictionary
         sentences[sentence] = taxon
@@ -217,31 +229,23 @@ def dtf_to_sentence(dtf):
 
 
 def main():
-    print("start!")
-    data = {
-        "tax": ["ATC", "TCG", "CGA", "GAT", "ATG", "TGC", "GCA", "CAG", "AGT", "GTG", "TGA", "GAC", "ACT", "NAT", "GCG", "ATN", "TNN"],
-        "tax1": [1, 3, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0],
-        "tax2": [0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1],
-        # Additional columns as requested
-        "tax3": [0, 1, 0, 6, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
-        "tax4": [1, 0, 1, 0, 2, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
-    }
-    # with open("training_data2.json", 'r') as file:
-    #    data = json.load(file)
+    logger.info("start!")
 
     # Creating the DataFrame
-    df = pd.DataFrame(data).set_index("tax").T
-    print(df)
-    sentences = dtf_to_sentence(dtf=df)
-    print(sentences)
+    # df = pd.DataFrame(data).set_index("tax").T
+    df = pd.read_csv("../../sequence_matrix.csv")
+    df_formated = df.reset_index(drop=False).rename(columns={"taxid": "label"})
+    sentences = dtf_to_sentence(dtf=df_formated)
+    logger.info("conversion to sentence done!")
     # dict_data = {}
-    tokenized_datasets = prepare_data_and_tokenize_string_input(data=sentences)
-    print("tokenized_datasets done!")
+    tokenized_datasets = prepare_data_and_tokenize_string_input(
+        data=sentences)
+    logger.info("tokenized_datasets done!")
     MBFT = MicroBioFineTuning(
         tokenized_datasets=tokenized_datasets
     )
     MBFT.model_train()
-    print("done!")
+    logger.info("done!")
 
 
 if __name__ == "__main__":
