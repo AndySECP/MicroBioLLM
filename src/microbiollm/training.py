@@ -1,15 +1,21 @@
+#! /usr/bin/env python3
+
 from dataclasses import dataclass
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from transformers import AutoModelForSequenceClassification, TrainingArguments, Trainer, AutoTokenizer, DataCollatorWithPaddingm, BitsAndBytesConfig
-from torch.utils.data import Dataset
-from datasets import Dataset, DatasetDict
-import torch
 import json
 import logging
 
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from transformers import AutoModelForSequenceClassification, TrainingArguments, Trainer, AutoTokenizer, DataCollatorWithPaddingm, BitsAndBytesConfig
+from datasets import Dataset, DatasetDict
+import torch
+
 logger = logging.getLogger(__name__)
 
+"""
+This script tokenized the kmers and train and fine tuned the Mistral LLM 
+"""
 
 class KmerCountDataset(Dataset):
     def __init__(self, sequences, labels):

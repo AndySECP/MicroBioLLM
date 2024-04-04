@@ -1,3 +1,5 @@
+#! /usr/bin/env python3
+
 import glob
 import gzip
 
@@ -6,6 +8,10 @@ from transformers import AutoTokenizer
 from datasets import Dataset, DatasetDict
 from sklearn.model_selection import train_test_split
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+"""
+This script generates the kmer frequencies from the selected genomes (downloaded using the data_base_creation.py script) 
+"""
 
 
 def extract_sequence_from_gzipped_fasta(gzipped_fasta_file: str) -> str:
