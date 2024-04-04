@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
-def extract_sequence_from_gzipped_fasta(gzipped_fasta_file):
+def extract_sequence_from_gzipped_fasta(gzipped_fasta_file: str) -> str:
     sequence = ""
     with gzip.open(gzipped_fasta_file, "rt") as f:
         # Skip the header line
@@ -19,7 +19,7 @@ def extract_sequence_from_gzipped_fasta(gzipped_fasta_file):
     return sequence
 
 
-def count_kmer_types(sequence, k):
+def count_kmer_types(sequence: str, k: int) -> dict:
     kmer_counts = {}
     for i in range(len(sequence) - k + 1):
         kmer = sequence[i:i + k]
@@ -33,19 +33,7 @@ def count_kmer_types(sequence, k):
     return kmer_counts
 
 
-def create_kmer_dataframe_(sequence_data, k):
-    data = {}
-    for taxid, sequence in sequence_data.items():
-        print(taxid)
-        kmer_counts = count_kmer_types(sequence, k)
-        data[taxid] = kmer_counts
-
-    # Convert data dictionary to DataFrame
-    df = pd.DataFrame(data).fillna(0).astype(int)
-    return df
-
-
-def create_kmer_dataframe(sequence_data, k):
+def create_kmer_dataframe(sequence_data: dict, k: int):
     # List to store each row's data
     rows_list = []
 
@@ -81,7 +69,7 @@ def generate_kmer_sentences_with_loop(sequence_data: dict, kmer_size: int = 8) -
     return kmer_sentences
 
 
-def generate_kmer_sentence(sequence, kmer_size):
+def generate_kmer_sentence(sequence: str, kmer_size: int):
     """
     Generate a k-mer sentence from a single DNA sequence.
     """
@@ -90,7 +78,7 @@ def generate_kmer_sentence(sequence, kmer_size):
     return " ".join(kmer_list)
 
 
-def parallel_generate_kmer_sentences(sequence_data, kmer_size, max_workers=10):
+def parallel_generate_kmer_sentences(sequence_data: dict, kmer_size: int, max_workers: int = 10):
     """
     Parallel generation of k-mer sentences from DNA sequences.
     """
@@ -109,7 +97,8 @@ def parallel_generate_kmer_sentences(sequence_data, kmer_size, max_workers=10):
     return kmer_sentences
 
 
-def tokenize_and_prepare_datasets(sequence_data: dict, kmer_size: int, tokenizer_model="mistralai/Mistral-7B-Instruct-v0.2"):
+def tokenize_and_prepare_datasets(sequence_data: dict, kmer_size: int,
+                                  tokenizer_model="mistralai/Mistral-7B-Instruct-v0.2"):
     """
     Tokenize k-mer sentences and prepare datasets for training/testing.
     """
@@ -185,8 +174,6 @@ def main(path_to_fasta: str, tokenize_bool: bool = False, save_matrix_to_csv: bo
         ).values[0]
         genome_sequence = extract_sequence_from_gzipped_fasta(genome)
         seq[genome_sequence] = family_associated
-    # kmer_df = create_kmer_dataframe(seq, 8)
-    # kmer_dict = generate_kmer_sentences(sequence_data=seq, kmer_size=8)
     if tokenize_bool:
         tokenized_datasets = tokenize_and_prepare_datasets(
             sequence_data=seq, kmer_size=4, tokenizer_model="mistralai/Mistral-7B-Instruct-v0.2")
