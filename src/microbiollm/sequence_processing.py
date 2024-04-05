@@ -1,21 +1,17 @@
-import pandas as pd
 import glob
 import gzip
 
+import pandas as pd
 
-def transform_selected_genomes_df(selected_genomes_df: pd.DataFrame):
-    selected_genomes_sub = selected_genomes_df[[
-        "taxid", "species_taxid", "organism_name", "genus", "family", "ftp_path"]]
-    selected_genomes_sub["ftp_id"] = selected_genomes_sub["ftp_path"].str.split(
-        "/")
-    selected_genomes_sub["ftp_id"] = selected_genomes_sub["ftp_id"].apply(
-        lambda x: x[-1] if len(x) > 0 else "")
-    selected_genomes_sub["ftp_id"] = selected_genomes_sub["ftp_id"] + \
-        "_genomic.fna.gz"
-    return selected_genomes_sub
+from kmer_generation import transform_selected_genomes_df
+
+"""
+This script uses another transformation of the DNA. Instead of using the kmer frequency, we use the all DNA sequences 
+that we split into tokens of same length. 
+"""
 
 
-def extract_sequence_from_gzipped_fasta(gzipped_fasta_file):
+def extract_sequence_from_gzipped_fasta(gzipped_fasta_file: str):
     sequence = ""
     with gzip.open(gzipped_fasta_file, "rt") as f:
         # Skip the header line
@@ -24,18 +20,6 @@ def extract_sequence_from_gzipped_fasta(gzipped_fasta_file):
         for line in f:
             sequence += line.strip()
     return sequence
-
-
-def transform_selected_genomes_df(selected_genomes_df: pd.DataFrame):
-    selected_genomes_sub = selected_genomes_df[[
-        "taxid", "species_taxid", "organism_name", "genus", "family", "ftp_path"]]
-    selected_genomes_sub["ftp_id"] = selected_genomes_sub["ftp_path"].str.split(
-        "/")
-    selected_genomes_sub["ftp_id"] = selected_genomes_sub["ftp_id"].apply(
-        lambda x: x[-1] if len(x) > 0 else "")
-    selected_genomes_sub["ftp_id"] = selected_genomes_sub["ftp_id"] + \
-        "_genomic.fna.gz"
-    return selected_genomes_sub
 
 
 def process_sequences(path_to_fasta: str = "../../../microbiodata/fasta") -> pd.DataFrame:
