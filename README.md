@@ -2,7 +2,7 @@
 
 ## Unraveling the secrets of the microbiome
 
-The overarching goal here is to leverage language model methodologies, but adapted for the biological sequences domain and in this case, microbiology and microbiome data. This involves processing genetic data (e.g., DNA sequences) to classify or predict specific organisms' characteristics, such as taxonomy IDs or family types.
+The overarching goal here is to leverage language model methodologies, but adapted for the biological sequences domain and in this case, microbiology and microbiome data. This involves processing genetic data (e.g., DNA sequences) to classify or predict specific organisms' phylogenetic characteristics.
 
 What is a microbiome?
 The microbiome is the community of microorganisms (such as fungi, bacteria and viruses) that exists in a particular environment. In humans, the term is often used to describe the microorganisms that live in or on a particular part of the body, such as the skin or gastrointestinal tract. Microbiome can be very complex, like the soil microbiome. Microbiome are crucial for human health and understanding precisely their composition is crucial for a lot of applications.
