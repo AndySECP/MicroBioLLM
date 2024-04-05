@@ -1,3 +1,5 @@
+#! /usr/bin/env python3
+
 import glob
 import gzip
 
@@ -8,6 +10,7 @@ from kmer_generation import transform_selected_genomes_df
 """
 This script uses another transformation of the DNA. Instead of using the kmer frequency, we use the all DNA sequences 
 that we split into tokens of same length. 
+[in progress]
 """
 
 

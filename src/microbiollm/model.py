@@ -1,9 +1,12 @@
+#! /usr/bin/env python3
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from einops import rearrange
 
-
+"""
+Train a model from scratch using SSM (see Mamba methodology
+"""
 class DNAEmbedding(nn.Module):
     """
     Embed DNA sequences into a high-dimensional space.

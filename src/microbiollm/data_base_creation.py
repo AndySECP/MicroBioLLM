@@ -123,11 +123,11 @@ def create_data_base(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Create genome database')
-    parser.add_argument('-d', '--database', dest='database', help='', required=True)
-    parser.add_argument('-k', '--superkingdom', dest='superkingdom', help='', required=True)
-    parser.add_argument('-f', '--families', dest='families', help='', nargs='+', required=True)
-    parser.add_argument('-s', '--sample_size', dest='sample_size', help='', required=True)
-    parser.add_argument('-g', '--genome_dir', dest='genome_dir', help='', required=True)
+    parser.add_argument('-d', '--database', dest='database', help='refseq or genbank', required=True)
+    parser.add_argument('-k', '--superkingdom', dest='superkingdom', help='e.g: Bacteria', required=True)
+    parser.add_argument('-f', '--families', dest='families', help='e.g Bacillaceae Pseudomonadaceae', nargs='+', required=True)
+    parser.add_argument('-s', '--sample_size', dest='sample_size', help='number of organism to download', required=True)
+    parser.add_argument('-g', '--genome_dir', dest='genome_dir', help='directory to store the genomes', required=True)
 
     args = parser.parse_args()
 

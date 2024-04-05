@@ -2,6 +2,7 @@ import subprocess
 
 from ete3 import NCBITaxa
 
+
 def execute_command(command: str):
     try:
         # Execute the command
@@ -9,6 +10,7 @@ def execute_command(command: str):
         print("Command executed successfully.")
     except subprocess.CalledProcessError as e:
         print(f"Error executing command: {e}")
+
 
 def tax_id_translator(tax_id: str) -> str:
     ncbi = NCBITaxa()

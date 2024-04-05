@@ -1,17 +1,29 @@
 #! /usr/bin/env python3
 
+import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import glob
 import gzip
+import logging
+import sys
 
 import pandas as pd
 from transformers import AutoTokenizer
 from datasets import Dataset, DatasetDict
 from sklearn.model_selection import train_test_split
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 """
-This script generates the kmer frequencies from the selected genomes (downloaded using the data_base_creation.py script) 
+This script generates the kmer frequencies from the selected genomes (downloaded using the data_base_creation.py script)
+and will tokenize the data (we used here the Mistral tokenizer but that might not be the best option moving forward) and
+represent each token with a vector 
+Example use: 
+python3 MicroBioLLM/src/microbiollm/kmer_generation.py -t -s -g database
 """
+
+logging.basicConfig(level=logging.INFO,
+                    format='[%(filename)s:%(lineno)s - %(funcName)s()] [%(asctime)s %(levelname)s] %(message)s')
+baselog = logging.getLogger(__name__)
+baselog.setLevel(logging.INFO)
 
 
 def extract_sequence_from_gzipped_fasta(gzipped_fasta_file: str) -> str:
@@ -55,7 +67,6 @@ def create_kmer_dataframe(sequence_data: dict, k: int):
         rows_list.append(row_data)
 
     # Convert the list of dictionaries to DataFrame
-    # Assuming 'taxid' should be the index, else remove the index_col part
     df = pd.DataFrame(rows_list).set_index('taxid').fillna(0).astype(int)
 
     return df
@@ -109,7 +120,6 @@ def tokenize_and_prepare_datasets(sequence_data: dict, kmer_size: int,
     Tokenize k-mer sentences and prepare datasets for training/testing.
     """
     # First, generate k-mer sentences
-    # kmer_sentences = generate_kmer_sentences(sequence_data, kmer_size)
 
     kmer_sentences = parallel_generate_kmer_sentences(sequence_data, kmer_size)
 
@@ -151,26 +161,27 @@ def tokenize_and_prepare_datasets(sequence_data: dict, kmer_size: int,
 
 
 def transform_selected_genomes_df(selected_genomes_df: pd.DataFrame):
-    selected_genomes_sub = selected_genomes_df[[
-        "taxid", "species_taxid", "organism_name", "genus", "family", "ftp_path"]]
-    selected_genomes_sub["ftp_id"] = selected_genomes_sub["ftp_path"].str.split(
-        "/")
-    selected_genomes_sub["ftp_id"] = selected_genomes_sub["ftp_id"].apply(
-        lambda x: x[-1] if len(x) > 0 else "")
-    selected_genomes_sub["ftp_id"] = selected_genomes_sub["ftp_id"] + \
-        "_genomic.fna.gz"
+    """
+    Will add the name of the fasta in the selected genome dataframe
+    :param selected_genomes_df:
+    :return:
+    """
+    selected_genomes_sub = selected_genomes_df[["taxid", "species_taxid", "organism_name", "family", "ftp_path"]]
+    selected_genomes_sub["ftp_id"] = selected_genomes_sub["ftp_path"].str.split("/")
+    selected_genomes_sub["ftp_id"] = selected_genomes_sub["ftp_id"].apply(lambda x: x[-1] if len(x) > 0 else "")
+    selected_genomes_sub["ftp_id"] = selected_genomes_sub["ftp_id"] + "_genomic.fna.gz"
     return selected_genomes_sub
 
 
-def main(path_to_fasta: str, tokenize_bool: bool = False, save_matrix_to_csv: bool = True):
+def generate_kmer(args):
+    logger = baselog.getChild('Generate kmers')
     seq = {}
-    selected_genomes_df = pd.read_csv("../../selected_genomes.csv")
-    selected_genomes_df = transform_selected_genomes_df(
-        selected_genomes_df=selected_genomes_df)
-    for i, genome in enumerate(glob.glob(f'{path_to_fasta}/*fna.gz')):
+    selected_genomes_df = pd.read_csv(f"{args.genome_dir}/selected_organisms.csv")
+    selected_genomes_df = transform_selected_genomes_df(selected_genomes_df=selected_genomes_df)
+    for i, genome in enumerate(glob.glob(f'{args.genome_dir}/*fna.gz')):
         if i > 20:
             break
-        print(genome)
+        logger.info(f"Processing {genome}")
         split_genome = genome.split("/")
         if len(split_genome) > 0:
             genome_adj = genome.split("/")[-1]
@@ -180,19 +191,29 @@ def main(path_to_fasta: str, tokenize_bool: bool = False, save_matrix_to_csv: bo
         ).values[0]
         genome_sequence = extract_sequence_from_gzipped_fasta(genome)
         seq[genome_sequence] = family_associated
-    if tokenize_bool:
+    if args.tokenize_bool:
         tokenized_datasets = tokenize_and_prepare_datasets(
             sequence_data=seq, kmer_size=4, tokenizer_model="mistralai/Mistral-7B-Instruct-v0.2")
         tokenized_datasets.save_to_disk("path/to/save/tokenized_datasets")
 
     df_seq = create_kmer_dataframe(sequence_data=seq, k=4)
 
-    if save_matrix_to_csv:
+    if args.save_matrix_to_csv:
         df_seq.to_csv("sequence_matrix.csv")
 
     return df_seq
 
 
-if __name__ == "__main__":
-    res = main(path_to_fasta="../../../microbiodata/fasta")
-    print("done with calc")
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='kmer generation')
+    parser.add_argument('-t', '--tokenize_bool', dest='tokenize_bool', help='tokenize_bool',action='store_true',
+                        required=True)
+    parser.add_argument('-s', '--save_matrix_to_csv', dest='save_matrix_to_csv', help='save_matrix_to_csv',
+                        action='store_true', required=True)
+    parser.add_argument('-g', '--genome_dir', dest='genome_dir', help='directory to store the genomes', required=True)
+
+    args = parser.parse_args()
+
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+
+    generate_kmer(args)
