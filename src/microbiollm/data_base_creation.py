@@ -19,7 +19,6 @@ This is used for the first proof of concept so the database will be sample and w
 
 Example use: 
 python3 MicroBioLLM/src/microbiollm/data_base_creation.py -d refseq -k Bacteria -f Bacillaceae Pseudomonadaceae -s 10 -g database
-
 """
 
 logging.basicConfig(level=logging.INFO,
